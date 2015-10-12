@@ -174,23 +174,13 @@ public class DailyModel implements IDaily {
     }
 
     private void getFromNet(int date) {
-        if (PrefUtils.isEnableCache()) {
-            Calendar calendar = Calendar.getInstance();
-            try {
-                calendar.setTime(Constants.simpleDateFormat.parse(date + ""));
-                calendar.add(Calendar.DAY_OF_MONTH, 1);
-            } catch (ParseException e) {
-                e.printStackTrace();
-            }
-            date = Integer.parseInt(Constants.simpleDateFormat.format(calendar.getTime()));
-        }
         String url = ZhihuApi.getDailyNews(date);
         AsyncHttpClient client = new AsyncHttpClient();
         client.get(url, mAsyncHttpResponseHandler);
     }
 
     private void getFromCache(int date) {
-        getDailyStoriesDB(date);
+        getDailyStoriesDB(date, true);
     }
 
     /**
@@ -258,27 +248,25 @@ public class DailyModel implements IDaily {
         }
         database.close();
         Calendar calendar = Calendar.getInstance();
-        try {
-            calendar.setTime(Constants.simpleDateFormat.parse(dailyResult.date + ""));
-            calendar.add(Calendar.DAY_OF_MONTH, 1);
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        getDailyStoriesDB(Integer.parseInt(Constants.simpleDateFormat.format(calendar.getTime())));
+        getDailyStoriesDB(dailyResult.date, false);
     }
 
-    private void getDailyStoriesDB(int date) {
-        Calendar calendar = Calendar.getInstance();
-        try {
-            calendar.setTime(Constants.simpleDateFormat.parse(date + ""));
-            calendar.add(Calendar.DAY_OF_MONTH, -1);
-            date = Integer.parseInt(Constants.simpleDateFormat.format(calendar.getTime()));
-        } catch (ParseException e) {
-            e.printStackTrace();
+    private synchronized void getDailyStoriesDB(int date, boolean addDate) {
+        int dateForDB = date;
+        if (addDate) {
+            Calendar calendar = Calendar.getInstance();
+            try {
+                calendar.setTime(Constants.simpleDateFormat.parse(dateForDB + ""));
+                calendar.add(Calendar.DAY_OF_MONTH, -1);
+                dateForDB = Integer.parseInt(Constants.simpleDateFormat.format(calendar.getTime()));
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
         }
+        Log.d(TAG, "date--->" + date + "; date for DB--->" + dateForDB);
         SQLiteDatabase database = mSQLiteHelper.getWritableDatabase();
         List<Daily> dailyList = new ArrayList<>();
-        Cursor cursor = database.rawQuery("SELECT * FROM dailyresult WHERE date = ?", new String[]{date + ""});
+        Cursor cursor = database.rawQuery("SELECT * FROM dailyresult WHERE date = ?", new String[]{dateForDB + ""});
         while (cursor.moveToNext()) {
             Daily daily = new Daily();
             daily.id = cursor.getInt(cursor.getColumnIndex("id"));
